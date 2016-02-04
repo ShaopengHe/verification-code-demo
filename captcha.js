@@ -117,13 +117,14 @@ exports.destroyCode = function(req) {
 /**
  * 判断该请求是否异常而需要验证码
  * 结果保存在res.locals.captcha.suspicious
+ * @TODO
  * @param {Request} req
  * @param {Response} res
  * @param {Function} next
  */
 exports.suspiciousRequest = function(req, res, next) {
   res.locals.captcha = res.locals.captcha || {};
-  res.locals.captcha.suspicious = true;
+  res.locals.captcha.suspicious = req.session.failed > 2;
   return next();
 };
 
