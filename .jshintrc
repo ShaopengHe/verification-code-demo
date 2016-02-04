@@ -1,0 +1,31 @@
+{
+  /* "bitwise": true, */
+  "camelcase": true,
+  "curly": true,
+  "eqeqeq": true,
+  "esversion": 6,
+  "expr": true,
+  "freeze": true,
+  "immed": true,
+  "latedef": true,
+  "newcap": true,
+  "noarg": true,
+  "node": true,
+  "nonbsp": true,
+  "nonew": true,
+  "quotmark": "single",
+  "sub": true,
+  "trailing": true,
+  "undef": true,
+  "unused": true,
+
+  "globals": {
+    /* MOCHA */
+    "after"      : false,
+    "afterEach"  : false,
+    "before"     : false,
+    "beforeEach" : false,
+    "describe"   : false,
+    "it"         : false
+  }
+}
