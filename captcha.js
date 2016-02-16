@@ -65,6 +65,10 @@ function paintImage(code, params) {
 
 /*********************** exports functions ************************/
 
+function Captcha(key) {
+  this.key = key || 'default';
+}
+
 /**
  * 返回验证码图片中间件
  * @param {Object} [options]
@@ -80,7 +84,7 @@ function paintImage(code, params) {
  * @param {String} [options.curveColor=rgba(100,100,100,0.6)] 曲线颜色
  * @return {Function} fn(req, res) {}
  */
-exports.codeImage = function(options) {
+Captcha.prototype.codeImage = function(options) {
   var params = _.defaults(options || {}, {
     codeLength: 4,
     width: 100,
@@ -96,12 +100,17 @@ exports.codeImage = function(options) {
     curveColor: 'rgba(100,100,100,0.6)'
   });
 
+  let key = this.key;
   return function(req, res) {
     var code = randomCode(params.codeLength);
     var canvas = paintImage(code, params);
-    req.session.captcha = code;
+
+    req.session.captcha = req.session.captcha || {};
+    req.session.captcha[key] = req.session.captcha[key] || {};
+    req.session.captcha[key] = code;
+
     res.type('png');
-    res.header('Cache-Control', 'no-store, max-age=0');
+    res.header('Cache-Control', 'no-store, no-cache, max-age=0');
     canvas.pngStream().pipe(res);
   };
 };
@@ -110,22 +119,27 @@ exports.codeImage = function(options) {
  * 销毁Session中的验证码
  * @param {Request} req
  */
-exports.destroyCode = function(req) {
-  req.session.captcha = undefined;
+Captcha.prototype.destroyCode = function(req) {
+  if (req.session.captcha) {
+    req.session.captcha[this.key] = undefined;
+  }
 };
 
 /**
  * 判断该请求是否异常而需要验证码
- * 结果保存在res.locals.captcha.suspicious
+ * 结果保存在res.locals.captcha[key].suspicious
  * @TODO
- * @param {Request} req
- * @param {Response} res
- * @param {Function} next
+ * @return {Function} middleware
  */
-exports.suspiciousRequest = function(req, res, next) {
-  res.locals.captcha = res.locals.captcha || {};
-  res.locals.captcha.suspicious = req.session.failed > 2;
-  return next();
+Captcha.prototype.suspiciousRequest = function() {
+  let key = this.key;
+
+  return function(req, res, next) {
+    res.locals.captcha = res.locals.captcha || {};
+    res.locals.captcha[key] = res.locals.captcha[key] || {};
+    res.locals.captcha[key].suspicious = req.session.failed > 2;
+    return next();
+  };
 };
 
 /**
@@ -135,15 +149,18 @@ exports.suspiciousRequest = function(req, res, next) {
  * @param {String} fieldName 验证码的请求参数名
  * @return {Function} middleware
  */
-exports.verifyCode = function(fieldName) {
+Captcha.prototype.verifyCode = function(fieldName) {
+  var that = this;
+
   return function(req, res, next) {
-    if (!res.locals.captcha || !res.locals.captcha.suspicious) {
+    if (!res.locals.captcha || !res.locals.captcha[that.key] ||
+        !res.locals.captcha[that.key].suspicious) {
       return next();
     }
 
     // 每次验证都销毁原有验证码
-    let captcha = req.session.captcha;
-    exports.destroyCode(req);
+    let captcha = req.session.captcha[that.key];
+    that.destroyCode(req);
 
     let code = req.body[fieldName] || req.query[fieldName] || '';
     if (!code) {
@@ -160,3 +177,5 @@ exports.verifyCode = function(fieldName) {
     return next();
   };
 };
+
+module.exports = Captcha;

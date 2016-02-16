@@ -2,8 +2,10 @@ const app = require('express')();
 const bodyParser = require('body-parser');
 const path = require('path');
 const session = require('express-session');
+const Captcha = require('./captcha');
 
-const captcha = require('./captcha');
+const captcha = new Captcha('login');
+const otherCaptcha = new Captcha('other');
 
 const port = process.env.PORT || 3000;
 
@@ -18,16 +20,20 @@ app.use(session({
   secret: 'secret key'
 }));
 
-app.get('/captcha.jpg', captcha.codeImage());
+app.get('/otherCaptcha.png', otherCaptcha.codeImage({
+  fontColor: 'red'
+}));
 
-app.get('/login', captcha.suspiciousRequest, function(req, res) {
+app.get('/captcha.png', captcha.codeImage());
+
+app.get('/login', captcha.suspiciousRequest(), function(req, res) {
   res.render('login', {
     title: 'demo',
-    captcha: res.locals.captcha.suspicious
+    captcha: res.locals.captcha['login'].suspicious
   });
 });
 
-app.post('/login', captcha.suspiciousRequest, captcha.verifyCode('code'),
+app.post('/login', captcha.suspiciousRequest(), captcha.verifyCode('code'),
   function(req, res) {
     if ((req.body.username === 'test') && (req.body.pw === 'passwd')) {
       return res.json('ok');
@@ -40,6 +46,7 @@ app.post('/login', captcha.suspiciousRequest, captcha.verifyCode('code'),
 app.use(function(err, req, res, next) {
   res.status(Math.floor(err.code / 100) || 500);
   res.send(err.message);
+  console.error(err.stack);
   next = null;
 });
 
